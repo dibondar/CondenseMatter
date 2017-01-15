@@ -54,6 +54,8 @@ class MUBQBandStructure:
         # generate coordinate range
         self.X_range = np.linspace(-self.X_amplitude, self.X_amplitude - self.dX , self.X_gridDIM)
 
+        assert np.allclose(self.X_range, self.dX * (np.arange(self.X_gridDIM) - self.X_gridDIM//2))
+
         # generate momentum range as it corresponds to FFT frequencies
         self.P_range = fftpack.fftfreq(self.X_gridDIM, self.dX/(2*np.pi))
 
@@ -119,11 +121,14 @@ if __name__ == '__main__':
     au2eV = 27.
 
     # range of bloch vectors to compute the band structure
-    k_ampl = np.pi / qsys.X_amplitude
-    K = np.linspace(-0.5, 0.5, 200)
+    #k_ampl = np.pi / qsys.X_amplitude
+    #K = np.linspace(-0.5, 0.5, qsys.X_gridDIM)
 
-    for epsilon in qsys.get_band_structure(k_ampl * K, 4):
-        plt.plot(K, au2eV * epsilon)
+    dK = 2. * np.pi / (qsys.X_gridDIM * qsys.dX)
+    K = dK * (np.arange(qsys.X_gridDIM) - qsys.X_gridDIM // 2)
+
+    for epsilon in qsys.get_band_structure(K, 4):
+        plt.plot(K, au2eV * epsilon, '-*')
 
     plt.title("Reproduction of Fig. 1 from M. Wu et al. Phys. Rev A 91, 043839 (2015)")
     plt.xlabel("$k$ (units of $2\pi/ a_0$)")

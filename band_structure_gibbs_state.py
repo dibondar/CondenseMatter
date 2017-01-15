@@ -3,6 +3,11 @@ from scipy import fftpack # Tools for fourier transform
 from scipy import linalg # Linear algebra for dense matrix
 from band_structure_1d import MUBQBandStructure
 
+##########################################################################################
+#
+#   NOTE: The Bloch_Gibbs propagator implemented incorrectly
+#
+##########################################################################################
 
 class MUBGibbsBand(MUBQBandStructure):
     """
