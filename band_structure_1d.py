@@ -54,10 +54,12 @@ class MUBQBandStructure:
         # generate coordinate range
         self.X_range = np.linspace(-self.X_amplitude, self.X_amplitude - self.dX , self.X_gridDIM)
 
-        assert np.allclose(self.X_range, self.dX * (np.arange(self.X_gridDIM) - self.X_gridDIM//2))
+        r = np.arange(self.X_gridDIM)
+        self.sign_flip = (-1)**(r[:, np.newaxis] + r[np.newaxis, :])
 
         # generate momentum range as it corresponds to FFT frequencies
-        self.P_range = fftpack.fftfreq(self.X_gridDIM, self.dX/(2*np.pi))
+        self.P_range = np.arange(self.X_gridDIM, dtype=np.float) - self.X_gridDIM / 2
+        self.P_range *= 2. * np.pi / (self.X_gridDIM * self.dX)
 
     def get_hamiltonian(self, k):
         """
@@ -66,8 +68,11 @@ class MUBQBandStructure:
         :return: 2D numpy.array
         """
         # Construct the momentum dependent part
-        hamiltonian = fftpack.fft(np.diag(self.K(self.P_range + k)), axis=1, overwrite_x=True)
+        hamiltonian = np.diag(self.K(self.P_range + k))
+        hamiltonian *= self.sign_flip
         hamiltonian = fftpack.ifft(hamiltonian, axis=0, overwrite_x=True)
+        hamiltonian = fftpack.fft(hamiltonian, axis=1, overwrite_x=True)
+        hamiltonian *= self.sign_flip
 
         # Add diagonal potential energy
         hamiltonian += np.diag(self.V(self.X_range))
@@ -121,14 +126,11 @@ if __name__ == '__main__':
     au2eV = 27.
 
     # range of bloch vectors to compute the band structure
-    #k_ampl = np.pi / qsys.X_amplitude
-    #K = np.linspace(-0.5, 0.5, qsys.X_gridDIM)
-
-    dK = 2. * np.pi / (qsys.X_gridDIM * qsys.dX)
-    K = dK * (np.arange(qsys.X_gridDIM) - qsys.X_gridDIM // 2)
+    k_ampl = np.pi / qsys.X_amplitude
+    K = np.linspace(-0.5, 0.5, qsys.X_gridDIM)
 
     for epsilon in qsys.get_band_structure(K, 4):
-        plt.plot(K, au2eV * epsilon, '-*')
+        plt.plot(K, au2eV * epsilon, '-')
 
     plt.title("Reproduction of Fig. 1 from M. Wu et al. Phys. Rev A 91, 043839 (2015)")
     plt.xlabel("$k$ (units of $2\pi/ a_0$)")
