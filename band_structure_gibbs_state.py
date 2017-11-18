@@ -62,7 +62,7 @@ class MUBGibbsBand(MUBQBandStructure):
 
         expV = self.sign_flip * np.exp(-0.25 * dbeta * (self.V(X) + self.V(X_prime)))
         expK = np.exp(-0.5 * dbeta * (
-            self.K(self.P_range[:, np.newaxis] + k_val) + self.K(self.P_range[np.newaxis, :] + k_val)
+            self.K(self.P_range[:, np.newaxis] - k_val) + self.K(self.P_range[np.newaxis, :] - k_val)
         ))
 
         # initiate the Gibbs state with the infinite temperature state
@@ -84,7 +84,7 @@ class MUBGibbsBand(MUBQBandStructure):
             rho_gibb /= rho_gibb.trace()
 
         # Factorize in the quasimomentum
-        rho_gibb *= np.exp(-1j * k_val * (X - X_prime))
+        rho_gibb *= np.exp(1j * k_val * (X - X_prime))
 
         return rho_gibb
 
@@ -167,18 +167,64 @@ if __name__ == '__main__':
     is_physicial(gibbs)
     print("Energy of the Gibbs state via MUB: %f (a.u.)" % qsys.get_energy(gibbs))
 
-    gibbs_bloch = qsys.get_gibbs_bloch(quasimomentum, kT)
-    is_physicial(gibbs_bloch)
-    print("Energy of the Gibbs state via Bloch: %f (a.u.)" % qsys.get_energy(gibbs_bloch))
+    #gibbs_bloch = qsys.get_gibbs_bloch(quasimomentum, kT)
+    #is_physicial(gibbs_bloch)
+    #print("Energy of the Gibbs state via Bloch: %f (a.u.)" % qsys.get_energy(gibbs_bloch))
 
-    plt.subplot(121)
+    #print("Difference between Gibs via MUB and via Bloch = %1.2e" % np.linalg.norm(gibbs - gibbs_bloch))
+
+    ##########################################################################################
+    #
+    # Begin CUDA check
+    #
+    ##########################################################################################
+
+    from rho_bloch_cuda_1d import RhoBlochCUDA1D
+
+    # some adapdation for CUDA
+    sys_params.update(
+        V="-V0 * (1. + cos(M_PI * (X + X_amplitude) / X_amplitude))",
+        K="0.5 * P * P",
+        quasimomentum=quasimomentum,
+        dt=0.01,
+    )
+
+    qsys_cuda = RhoBlochCUDA1D(**sys_params)
+    qsys_cuda.get_gibbs_state(kT=kT)
+    gibbs_cuda = qsys_cuda.propagate(8000).rho.get()
+
+    #gibbs_cuda = qsys_cuda.get_gibbs_state(kT=kT).get()
+    gibbs_cuda /= gibbs_cuda.trace()
+
+    print(
+        "Difference between Gibs via MUB and via Bloch CUDA = %1.2e" \
+            % np.linalg.norm(gibbs - gibbs_cuda)
+    )
+
+    ##########################################################################################
+    #
+    # End CUDA check
+    #
+    ##########################################################################################
+
+    plt.subplot(221)
     plt.title("Gibbs state")
     plt.imshow(gibbs.real, origin='lower')
     plt.colorbar()
 
-    plt.subplot(122)
+    plt.subplot(222)
     plt.title("Gibbs state via Bloch")
-    plt.imshow(gibbs_bloch.real, origin='lower')
+    plt.imshow(gibbs_cuda.real, origin='lower')
+    plt.colorbar()
+
+    plt.subplot(223)
+    plt.title("Gibbs state")
+    plt.imshow(gibbs.imag, origin='lower')
+    plt.colorbar()
+
+    plt.subplot(224)
+    plt.title("Gibbs state via Bloch")
+    plt.imshow(gibbs_cuda.imag, origin='lower')
     plt.colorbar()
 
     # plt.plot(qsys.X_range, gibbs.diagonal().real,label='Gibbs')
